@@ -2,7 +2,8 @@ CC=gcc
 # compiler flags:
 #  -g    adds debugging information to the executable file
 #  -Wall turns on most, but not all, compiler warnings
-CFLAGS  = -g -Wall -pthreads
+CFLAGS  = -g -Wall
+LDFLAGS= -lpthread 
 
 # the build target executable:
 # SOURCES = $(wildcard *.c)
@@ -16,8 +17,8 @@ CFLAGS  = -g -Wall -pthreads
 # mm:$(OBJECTS)
 # 	$(CC) -o mm $(OBJECTS)
 
-mm: matrix_multiplication.c lab1_IO.c
-	$(CC) $(CFLAGS) -o mm matrix_multiplication.c lab1_IO.c -I
+main: matrix_multiplication.c lab1_IO.c
+	$(CC) $(CFLAGS) -o main matrix_multiplication.c lab1_IO.c $(LDFLAGS)
 
 clean:
 	@rm -f *.o mm
