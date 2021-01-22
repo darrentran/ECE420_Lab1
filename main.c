@@ -5,40 +5,41 @@
 #include <math.h>
 
 #include "lab1_IO.h"
+#include "timer.h"
 
-int ***multiply_sequential(int ***A, int ***B, int size)
-{
+// int ***multiply_sequential(int ***A, int ***B, int size)
+// {
 
-    int **C = malloc(size * sizeof(int *));
+//     int **C = malloc(size * sizeof(int *));
 
-    for (int i = 0; i < size; i++)
-    {
-        C[i] = malloc(size * sizeof(int));
-    }
+//     for (int i = 0; i < size; i++)
+//     {
+//         C[i] = malloc(size * sizeof(int));
+//     }
 
-    for (int i = 0; i < size; i++)
-    {
+//     for (int i = 0; i < size; i++)
+//     {
 
-        for (int j = 0; j < size; j++)
-        {
+//         for (int j = 0; j < size; j++)
+//         {
 
-            C[i][j] = 0;
+//             C[i][j] = 0;
 
-            for (int k = 0; k < size; k++)
-            {
-                C[i][j] += (*A)[i][k] * (*B)[k][j];
-            }
-        }
-    }
+//             for (int k = 0; k < size; k++)
+//             {
+//                 C[i][j] += (*A)[i][k] * (*B)[k][j];
+//             }
+//         }
+//     }
 
-    return &C;
-}
+//     return &C;
+// }
 
 struct arg_struct
 {
-    int ***A;
-    int ***B;
-    int ***C;
+    int **A;
+    int **B;
+    int **C;
     int size;
     int left_i;
     int right_i;
@@ -46,27 +47,36 @@ struct arg_struct
     int right_j;
 };
 
+void free_matrix(int **matrix, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        free(matrix[i]);
+    }
+    free(matrix);
+}
+
 void *calculate_c_i_j(void *arg_p)
 {
-    struct arg_struct *args = arg_p;
+    struct arg_struct *args = (struct arg_struct *)arg_p;
 
     for (int i = args->left_i; i <= args->right_i; i++)
     {
         for (int j = args->left_j; j <= args->right_j; j++)
         {
-            (*args->C)[i][j] = 0;
+            (args->C)[i][j] = 0;
 
             for (int k = 0; k < args->size; k++)
             {
-                (*args->C)[i][j] += (*args->A)[i][k] * (*args->B)[k][j];
-                printf((*args->A)[i][k]);
-                printf((*args->B)[k][j]);
+                (args->C)[i][j] += (args->A)[i][k] * (args->B)[k][j];
             }
         }
     }
+    free(args);
+    return NULL;
 }
 
-int ***multiply_parallel(int ***A, int ***B, int size, int num_threads)
+int **multiply_parallel(int **A, int **B, int size, int num_threads)
 {
 
     // Allocate memory for output matrix
@@ -75,8 +85,7 @@ int ***multiply_parallel(int ***A, int ***B, int size, int num_threads)
     {
         C[i] = malloc(size * sizeof(int));
     }
-
-    pthread_t thread_array[num_threads];
+    pthread_t *thread_array = malloc(num_threads * sizeof(pthread_t *));
 
     // Perform matrix multiplcation
     for (int k = 0; k < num_threads; k++)
@@ -90,10 +99,10 @@ int ***multiply_parallel(int ***A, int ***B, int size, int num_threads)
         int left_j = size / sqrt(num_threads) * y;
         int right_j = (size / sqrt(num_threads) * (y + 1)) - 1;
 
-        struct arg_struct *args;
+        struct arg_struct *args = malloc(sizeof(struct arg_struct));
         args->A = A;
         args->B = B;
-        args->C = &C;
+        args->C = C;
         args->left_i = left_i;
         args->right_i = right_i;
         args->left_j = left_j;
@@ -107,31 +116,31 @@ int ***multiply_parallel(int ***A, int ***B, int size, int num_threads)
     {
         pthread_join(thread_array[k], NULL);
     }
-
-    return &C;
+    free(thread_array);
+    return C;
 }
 
 int main(int argc, char *argv[])
 {
+
+    if (argc != 2)
+    {
+        printf("Please indicate number of threads to create.\n");
+        return -1;
+    }
     int **MatrixA;
     int **MatrixB;
     int size;
-    int option;
-    int num_threads;
+    int num_threads = atoi(argv[1]);
+    double start, end;
 
     Lab1_loadinput(&MatrixA, &MatrixB, &size);
+    GET_TIME(start);
+    int **MatrixC = multiply_parallel(MatrixA, MatrixB, size, num_threads);
+    GET_TIME(end);
+    Lab1_saveoutput(MatrixC, &size, end - start);
 
-    while ((option = getopt(argc, argv, "t:")) != -1)
-        switch (option)
-        {
-        case 't':
-            num_threads = strtol(optarg, NULL, size * size);
-            break;
-        case '?':
-            printf("Unexpected Options. \n");
-            return -1;
-        }
-
-    int ***result = multiply_parallel(&MatrixA, &MatrixB, size, num_threads);
-    Lab1_saveoutput(*result, &size, 0.0);
+    free_matrix(MatrixA, size);
+    free_matrix(MatrixB, size);
+    free_matrix(MatrixC, size);
 }
